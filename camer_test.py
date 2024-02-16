@@ -1,16 +1,13 @@
 import cv2
 import numpy as np
 import torch
+import pyautogui
+import time
 
 from queue import Queue
-
 from model.net import get_model, get_transforms, DEVICE, classes, IMG_SIZE
-
 from mediapipe.python.solutions import hands as mhands
-
 from filter import SlidingWindowMeanFilter
-
-import pyautogui
 
 model = get_model("checkpoints/RetinaNet_ResNet50.pth")
 transform = get_transforms()
@@ -41,8 +38,10 @@ def raw_model():
 
     filters = {4: SlidingWindowMeanFilter(3), 8: SlidingWindowMeanFilter(3)}
     last_pos = (0, 0)
+    fps_filter: SlidingWindowMeanFilter[float] = SlidingWindowMeanFilter(10)
     with torch.no_grad():
         while cap.isOpened():
+            t1 = time.time()
             ret, frame = cap.read()
             frame = cv2.flip(frame, 1)
             (width, height), img = process_img(frame)
@@ -78,7 +77,19 @@ def raw_model():
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
                             if idx == 8:
-                                pos_queue.put((x, y))
+                                if not pos_queue.full():
+                                    pos_queue.put_nowait((x, y))
+            t2 = time.time()
+
+            dt, _ = fps_filter.push((t2 - t1, 0))
+            cv2.putText(
+                frame,
+                f"{(1/dt):.2f}fps",
+                (30, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+            )
 
             cv2.imshow("test", frame)
             key = cv2.waitKey(1)
@@ -97,7 +108,7 @@ def mouse_handle():
         pos = pos_queue.get()
         dx = pos[0] - last_pos[0]
         dy = pos[1] - last_pos[1]
-        pyautogui.move(dx, dy, duration=0.1)
+        pyautogui.move(dx, dy, 0.03)
         last_pos = pos
 
 
