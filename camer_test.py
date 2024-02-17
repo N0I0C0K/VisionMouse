@@ -3,11 +3,22 @@ import numpy as np
 import torch
 import pyautogui
 import time
+import typing
 
+
+from pyautogui._pyautogui_win import (
+    _moveTo,
+    _position,
+    _click,
+    _mouseDown,
+    _mouseUp,
+    _mouse_is_swapped,
+)
 from queue import Queue
 from model.net import get_model, get_transforms, DEVICE, classes, IMG_SIZE
 from mediapipe.python.solutions import hands as mhands
 from filter import SlidingWindowMeanFilter
+
 
 model = get_model("checkpoints/RetinaNet_ResNet50.pth")
 transform = get_transforms()
@@ -21,7 +32,45 @@ def process_img(img: np.ndarray) -> tuple[tuple[int, int], torch.Tensor]:
     return ((width, height), processed_image.to(DEVICE))
 
 
-pos_queue: Queue[tuple[int, int]] = Queue(1)
+Position = tuple[int, int]
+
+
+def distance(pos1: Position, pos2: Position) -> int:
+    return (pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2
+
+
+class HandInfo(typing.NamedTuple):
+    hand_landmark_pos: list[Position]
+    camera_size: tuple[int, int]
+    c_time: float
+
+    @property
+    def anchor(self) -> Position:
+        """
+        获取中指根部的坐标，作为整个手掌的锚点
+        """
+        return self.hand_landmark_pos[9]
+
+    @property
+    def unit(self) -> int:
+        return distance(self.hand_landmark_pos[0], self.anchor)
+
+    @property
+    def is_pinch(self) -> bool:
+        return self.get_mark_distance(4, 8) * 16 < self.unit
+
+    def get_mark_distance(self, mark_idx1: int, mark_idx2: int) -> int:
+        return distance(
+            self.hand_landmark_pos[mark_idx1], self.hand_landmark_pos[mark_idx2]
+        )
+
+    def anchor_diff(self, other: "HandInfo") -> tuple[Position, float]:
+        p = self.anchor
+        t = other.anchor
+        return (p[0] - t[0], p[1] - t[1]), self.c_time - other.c_time
+
+
+pos_queue: Queue[HandInfo] = Queue(1)
 
 
 def raw_model():
@@ -69,16 +118,18 @@ def raw_model():
 
             if results.multi_hand_landmarks:  # type: ignore
                 for hand_landmarks in results.multi_hand_landmarks:  # type: ignore
+                    hands_info: list[Position] = [(0, 0) for _ in range(22)]
                     for idx, landmark in enumerate(hand_landmarks.landmark):
                         x = int(landmark.x * frame.shape[1])
                         y = int(landmark.y * frame.shape[0])
-                        if idx == 8 or idx == 4:  # 食指指尖的关键点索引为8
-                            # pos = filters[idx].push((x, y))
-                            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-
-                            if idx == 8:
-                                if not pos_queue.full():
-                                    pos_queue.put_nowait((x, y))
+                        # if idx == 8 or idx == 4 or idx == 9:  # 食指指尖的关键点索引为8
+                        # pos = filters[idx].push((x, y))
+                        cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                        hands_info[idx] = (x, y)
+                    if not pos_queue.full():
+                        pos_queue.put_nowait(
+                            HandInfo(hands_info, (width, height), time.time())
+                        )
             t2 = time.time()
 
             dt, _ = fps_filter.push((t2 - t1, 0))
@@ -91,8 +142,8 @@ def raw_model():
                 (0, 255, 0),
             )
 
-            cv2.imshow("test", frame)
-            key = cv2.waitKey(1)
+            # cv2.imshow("test", frame)
+            # key = cv2.waitKey(1)
 
     cap.release()
 
@@ -100,16 +151,37 @@ def raw_model():
     cv2.destroyAllWindows()
 
 
-def mouse_handle():
+def move(dx: int, dy: int) -> Position:
+    pos = _position()
+    _moveTo(pos[0] + dx, pos[1] + dy)
+    return _position()
 
-    last_pos = pos_queue.get()
+
+def direction(x: int):
+    return 1 if x >= 0 else -1
+
+
+def mouse_handle():
+    last_hand_info = pos_queue.get()
+
     while True:
-        # print(pos_queue.qsize())
-        pos = pos_queue.get()
-        dx = pos[0] - last_pos[0]
-        dy = pos[1] - last_pos[1]
-        pyautogui.move(dx, dy, 0.03)
-        last_pos = pos
+        t1 = time.time()
+        cur_hand = pos_queue.get()
+        (dx, dy), dt = cur_hand.anchor_diff(last_hand_info)
+        x_dir, y_dir = direction(dx), direction(dy)
+        # scale = (dx**2 + dy**2) / cur_hand.unit * 1000
+        tx, ty = move(dx, dy)
+        last_hand_info = cur_hand
+
+        if cur_hand.is_pinch:
+            _mouseDown(tx, ty, "left")
+        else:
+            _mouseUp(tx, ty, "left")
+
+        t2 = time.time()
+        print(
+            f"handler fps:{1/(t2-t1):.2f}, {cur_hand.unit = }, dis:{(dx**2 + dy**2)}, 4-8 dis:{cur_hand.get_mark_distance(4,8)}, click:{cur_hand.is_pinch}"
+        )
 
 
 def main():
