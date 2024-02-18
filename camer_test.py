@@ -20,16 +20,16 @@ from mediapipe.python.solutions import hands as mhands
 from filter import SlidingWindowMeanFilter
 
 
-model = get_model("checkpoints/RetinaNet_ResNet50.pth")
-transform = get_transforms()
+# model = get_model("checkpoints/RetinaNet_ResNet50.pth")
+# transform = get_transforms()
 
 
-def process_img(img: np.ndarray) -> tuple[tuple[int, int], torch.Tensor]:
-    height, width = img.shape[0], img.shape[1]
-    transformed_image = transform(image=img)
-    processed_image: torch.Tensor = transformed_image["image"] / 255.0
+# def process_img(img: np.ndarray) -> tuple[tuple[int, int], torch.Tensor]:
+#     height, width = img.shape[0], img.shape[1]
+#     transformed_image = transform(image=img)
+#     processed_image: torch.Tensor = transformed_image["image"] / 255.0
 
-    return ((width, height), processed_image.to(DEVICE))
+#     return ((width, height), processed_image.to(DEVICE))
 
 
 Position = tuple[int, int]
@@ -93,7 +93,8 @@ def raw_model():
             t1 = time.time()
             ret, frame = cap.read()
             frame = cv2.flip(frame, 1)
-            (width, height), img = process_img(frame)
+            height, width = frame.shape[0], frame.shape[1]
+            # (width, height), img = process_img(frame)
             scale = max(width, height) / IMG_SIZE
             # out = model.forward([img])[0]
             # boxes = out["boxes"][:100]
@@ -143,7 +144,9 @@ def raw_model():
             )
 
             # cv2.imshow("test", frame)
-            # key = cv2.waitKey(1)
+            # key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
+            # if key == ord("q"):  # 如果按下 'q' 键，退出循环
+            #     break
 
     cap.release()
 
@@ -157,39 +160,60 @@ def move(dx: int, dy: int) -> Position:
     return _position()
 
 
-def direction(x: int):
-    return 1 if x >= 0 else -1
+def direction(dire: tuple[float | int, float | int]) -> tuple[float, float]:
+    vec = np.array(dire)
+    d_ = vec / max(np.linalg.norm(vec), np.float32(0.0001))
+    return d_[0], d_[1]
 
 
 def mouse_handle():
-    last_hand_info = pos_queue.get()
+    from math import sqrt, floor
 
+    last_hand_info = pos_queue.get()
+    cur_button_down = False
+    pos_filter: SlidingWindowMeanFilter[int] = SlidingWindowMeanFilter(5)
     while True:
         t1 = time.time()
         cur_hand = pos_queue.get()
         (dx, dy), dt = cur_hand.anchor_diff(last_hand_info)
-        x_dir, y_dir = direction(dx), direction(dy)
-        # scale = (dx**2 + dy**2) / cur_hand.unit * 1000
-        tx, ty = move(dx, dy)
+        dx, dy = map(int, pos_filter.push((dx, dy)))
+        x_dir, y_dir = direction((dx, dy))
+        scale = sqrt(dx**2 + dy**2) / max(dt, 0.001) / 10
+
+        tx, ty = move(floor(x_dir * scale), floor(y_dir * scale))
         last_hand_info = cur_hand
 
         if cur_hand.is_pinch:
-            _mouseDown(tx, ty, "left")
+            if not cur_button_down:
+                _mouseDown(tx, ty, "left")
+                cur_button_down = True
         else:
-            _mouseUp(tx, ty, "left")
+            if cur_button_down:
+                _mouseUp(tx, ty, "left")
+                cur_button_down = False
 
         t2 = time.time()
-        print(
-            f"handler fps:{1/(t2-t1):.2f}, {cur_hand.unit = }, dis:{(dx**2 + dy**2)}, 4-8 dis:{cur_hand.get_mark_distance(4,8)}, click:{cur_hand.is_pinch}"
-        )
+        print(f"handler fps:{1/max(t2-t1, 0.001):.2f} click:{cur_hand.is_pinch}")
 
 
 def main():
     from concurrent.futures.thread import ThreadPoolExecutor
+    import traceback
 
     pool = ThreadPoolExecutor(2)
     handler = pool.submit(mouse_handle)
+
     raw_model()
+    traceback.print_exception(handler.exception())
 
 
 main()
+
+
+def test():
+    pos_filter: SlidingWindowMeanFilter[int] = SlidingWindowMeanFilter(5)
+    x, y = pos_filter.push((-10, 10))
+    print(f"{x = } {y = }")
+
+
+# test()
