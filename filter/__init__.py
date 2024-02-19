@@ -28,3 +28,16 @@ class SlidingWindowMeanFilter(typing.Generic[T]):
             return (sx.astype(float), sy.astype(float))
         else:
             return self.data[self.idx]
+
+
+class StepFilter(typing.Generic[T]):
+    def __init__(self, smooth: float = 4) -> None:
+        self.last_pos: tuple[float, float] = (0, 0)
+        self.smooth = smooth
+
+    def push(self, point: tuple[T, T]) -> tuple[float, float]:
+        lp = self.last_pos
+        dx, dy = point[0] - lp[0], point[1] - lp[1]
+        tx, ty = lp[0] + dx / self.smooth, lp[1] + dy / self.smooth
+        self.last_pos = (tx, ty)
+        return (tx, ty)

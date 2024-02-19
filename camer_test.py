@@ -12,12 +12,13 @@ from pyautogui._pyautogui_win import (
     _click,
     _mouseDown,
     _mouseUp,
-    _mouse_is_swapped,
+    _vscroll,
 )
 from queue import Queue
 from model.net import get_model, get_transforms, DEVICE, classes, IMG_SIZE
 from mediapipe.python.solutions import hands as mhands
 from filter import SlidingWindowMeanFilter
+from dataclasses import dataclass, field
 
 
 # model = get_model("checkpoints/RetinaNet_ResNet50.pth")
@@ -39,10 +40,15 @@ def distance(pos1: Position, pos2: Position) -> int:
     return (pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2
 
 
-class HandInfo(typing.NamedTuple):
+@dataclass
+class HandInfo:
     hand_landmark_pos: list[Position]
     camera_size: tuple[int, int]
     c_time: float
+    _unit: int = field(init=False)
+
+    def __post_init__(self):
+        self._unit = distance(self.hand_landmark_pos[0], self.anchor)
 
     @property
     def anchor(self) -> Position:
@@ -53,11 +59,14 @@ class HandInfo(typing.NamedTuple):
 
     @property
     def unit(self) -> int:
-        return distance(self.hand_landmark_pos[0], self.anchor)
+        return self._unit
 
     @property
     def is_pinch(self) -> bool:
-        return self.get_mark_distance(4, 8) * 16 < self.unit
+        return self.is_touched(4, 8)
+
+    def is_touched(self, idx1: int, idx2: int) -> bool:
+        return self.get_mark_distance(idx1, idx2) * 16 < self.unit
 
     def get_mark_distance(self, mark_idx1: int, mark_idx2: int) -> int:
         return distance(
@@ -86,7 +95,6 @@ def raw_model():
     )
 
     filters = {4: SlidingWindowMeanFilter(3), 8: SlidingWindowMeanFilter(3)}
-    last_pos = (0, 0)
     fps_filter: SlidingWindowMeanFilter[float] = SlidingWindowMeanFilter(10)
     with torch.no_grad():
         while cap.isOpened():
@@ -143,10 +151,10 @@ def raw_model():
                 (0, 255, 0),
             )
 
-            cv2.imshow("test", frame)
-            key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
-            if key == ord("q"):  # 如果按下 'q' 键，退出循环
-                break
+            # cv2.imshow("test", frame)
+            # key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
+            # if key == ord("q"):  # 如果按下 'q' 键，退出循环
+            #     break
 
     cap.release()
 
@@ -182,17 +190,30 @@ def mouse_handle():
         scale = speed / 10 * pow(max(speed, 0.0001), 0.1)
 
         tx, ty = move(floor(x_dir * scale), floor(y_dir * scale))
-        last_hand_info = cur_hand
 
-        if cur_hand.is_pinch:
+        # left mouse control
+        if cur_hand.is_pinch and last_hand_info.is_pinch:
             if not cur_button_down:
                 _mouseDown(tx, ty, "left")
                 cur_button_down = True
-        else:
+        if not cur_hand.is_pinch and not last_hand_info.is_pinch:
             if cur_button_down:
                 _mouseUp(tx, ty, "left")
                 cur_button_down = False
 
+        # right mouse control
+        if cur_hand.is_touched(4, 12) and not last_hand_info.is_touched(4, 12):
+            _click(tx, ty, "right")
+
+        # scroll control
+        if cur_hand.is_touched(4, 16) and last_hand_info.is_touched(4, 16):
+            _vscroll(10, tx, ty)
+
+        # scroll control
+        if cur_hand.is_touched(4, 20) and last_hand_info.is_touched(4, 20):
+            _vscroll(-10, tx, ty)
+
+        last_hand_info = cur_hand
         t2 = time.time()
         print(f"handler fps:{1/max(t2-t1, 0.001):.2f} click:{cur_hand.is_pinch}")
 
@@ -203,7 +224,7 @@ def main():
 
     pool = ThreadPoolExecutor(2)
     handler = pool.submit(mouse_handle)
-
+    # camera = pool.submit(raw_model)
     raw_model()
     traceback.print_exception(handler.exception())
 
