@@ -1,9 +1,7 @@
 import cv2
 import numpy as np
 import torch
-import pyautogui
 import time
-import typing
 
 
 from pyautogui._pyautogui_win import (
@@ -15,7 +13,8 @@ from pyautogui._pyautogui_win import (
     _vscroll,
 )
 from queue import Queue
-from model.net import get_model, get_transforms, DEVICE, classes, IMG_SIZE
+
+# from model.net import get_model, get_transforms, DEVICE, classes, IMG_SIZE
 from mediapipe.python.solutions import hands as mhands
 from filter import SlidingWindowMeanFilter
 from dataclasses import dataclass, field
@@ -103,7 +102,7 @@ def raw_model():
             frame = cv2.flip(frame, 1)
             height, width = frame.shape[0], frame.shape[1]
             # (width, height), img = process_img(frame)
-            scale = max(width, height) / IMG_SIZE
+            # scale = max(width, height) / IMG_SIZE
             # out = model.forward([img])[0]
             # boxes = out["boxes"][:100]
             # scores = out["scores"][:100]
@@ -131,8 +130,6 @@ def raw_model():
                     for idx, landmark in enumerate(hand_landmarks.landmark):
                         x = int(landmark.x * frame.shape[1])
                         y = int(landmark.y * frame.shape[0])
-                        # if idx == 8 or idx == 4 or idx == 9:  # 食指指尖的关键点索引为8
-                        # pos = filters[idx].push((x, y))
                         cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
                         hands_info[idx] = (x, y)
                     if not pos_queue.full():
@@ -215,7 +212,7 @@ def mouse_handle():
 
         last_hand_info = cur_hand
         t2 = time.time()
-        print(f"handler fps:{1/max(t2-t1, 0.001):.2f} click:{cur_hand.is_pinch}")
+        print(f"handler fps:{1/max(t2-t1, 0.001):.2f} {cur_hand.is_pinch = }")
 
 
 def main():
@@ -230,12 +227,3 @@ def main():
 
 
 main()
-
-
-def test():
-    pos_filter: SlidingWindowMeanFilter[int] = SlidingWindowMeanFilter(5)
-    x, y = pos_filter.push((-10, 10))
-    print(f"{x = } {y = }")
-
-
-# test()
