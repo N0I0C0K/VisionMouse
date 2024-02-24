@@ -1,0 +1,8 @@
+#MainWindow #view {
+    background-color: transparent;
+}
+
+#MainWindow QScrollArea {
+    border: none;
+    background-color: transparent;
+}
