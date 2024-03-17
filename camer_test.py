@@ -1,3 +1,4 @@
+import sys
 import time
 from queue import Queue
 
@@ -7,16 +8,28 @@ import cv2
 import numpy as np
 
 # import torch
-type a = str
+SYS_PLATFORM = sys.platform
 
-from pyautogui._pyautogui_win import (
-    _moveTo,
-    _position,
-    _click,
-    _mouseDown,
-    _mouseUp,
-    _vscroll,
-)
+if SYS_PLATFORM.startswith("win32"):
+    from pyautogui._pyautogui_win import (
+        _moveTo,
+        _position,
+        _click,
+        _mouseDown,
+        _mouseUp,
+        _vscroll,
+    )
+elif SYS_PLATFORM.startswith("darwin"):
+    from pyautogui._pyautogui_osx import (
+        _moveTo,
+        _position,
+        _click,
+        _mouseDown,
+        _mouseUp,
+        _vscroll,
+    )
+else:
+    raise ImportError
 
 
 # from model.net import get_model, get_transforms, DEVICE, classes, IMG_SIZE
