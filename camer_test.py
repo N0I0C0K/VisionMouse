@@ -165,10 +165,10 @@ def raw_model():
             (0, 255, 0),
         )
 
-        cv2.imshow("test", frame)
-        key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
-        if key == ord("q"):  # 如果按下 'q' 键，退出循环
-            break
+        # cv2.imshow("test", frame)
+        # key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
+        # if key == ord("q"):  # 如果按下 'q' 键，退出循环
+        #     break
 
     cap.release()
 
@@ -198,6 +198,7 @@ def mouse_handle():
         t1 = time.time()
         cur_hand = pos_queue.get()
         (dx, dy), dt = cur_hand.anchor_diff(last_hand_info)
+        dt = max(dt, 0.01)
         dx, dy = map(int, pos_filter.push((dx, dy)))
         x_dir, y_dir = direction((dx, dy))
         speed = sqrt(dx**2 + dy**2) / max(dt, 0.001)
