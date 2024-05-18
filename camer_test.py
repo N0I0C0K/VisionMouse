@@ -1,23 +1,40 @@
+import sys
+import time
+from queue import Queue
+
+from dataclasses import dataclass, field
+
 import cv2
 import numpy as np
-import torch
-import time
 
+# import torch
+SYS_PLATFORM = sys.platform
 
-from pyautogui._pyautogui_win import (
-    _moveTo,
-    _position,
-    _click,
-    _mouseDown,
-    _mouseUp,
-    _vscroll,
-)
-from queue import Queue
+if SYS_PLATFORM.startswith("win32"):
+    from pyautogui._pyautogui_win import (
+        _moveTo,
+        _position,
+        _click,
+        _mouseDown,
+        _mouseUp,
+        _vscroll,
+    )
+elif SYS_PLATFORM.startswith("darwin"):
+    from pyautogui._pyautogui_osx import (
+        _moveTo,
+        _position,
+        _click,
+        _mouseDown,
+        _mouseUp,
+        _vscroll,
+    )
+else:
+    raise ImportError
+
 
 # from model.net import get_model, get_transforms, DEVICE, classes, IMG_SIZE
 from mediapipe.python.solutions import hands as mhands
 from filter import SlidingWindowMeanFilter
-from dataclasses import dataclass, field
 
 
 # model = get_model("checkpoints/RetinaNet_ResNet50.pth")
@@ -95,63 +112,62 @@ def raw_model():
 
     filters = {4: SlidingWindowMeanFilter(3), 8: SlidingWindowMeanFilter(3)}
     fps_filter: SlidingWindowMeanFilter[float] = SlidingWindowMeanFilter(10)
-    with torch.no_grad():
-        while cap.isOpened():
-            t1 = time.time()
-            ret, frame = cap.read()
-            frame = cv2.flip(frame, 1)
-            height, width = frame.shape[0], frame.shape[1]
-            # (width, height), img = process_img(frame)
-            # scale = max(width, height) / IMG_SIZE
-            # out = model.forward([img])[0]
-            # boxes = out["boxes"][:100]
-            # scores = out["scores"][:100]
-            # labels = out["labels"][:100]
-            # padding_w, padding_h = (
-            #     abs(int(IMG_SIZE - width / scale)) // 2,
-            #     abs(int(IMG_SIZE - height / scale)) // 2,
-            # )
-            # for i in range(min(100, len(boxes))):
-            #     if scores[i] > 0.7:
-            #         print(classes[int(labels[i])], scores[i])
-            #         pos1 = int((boxes[i][0] - padding_w) * scale), int(
-            #             (boxes[i][1] - padding_h) * scale
-            #         )
-            #         pos2 = int((boxes[i][2] - padding_w) * scale), int(
-            #             (boxes[i][3] - padding_h) * scale
-            #         )
-            #         cv2.rectangle(frame, pos1, pos2, (0, 255, 0), 2)
-            resized_frame = cv2.resize(frame, (width // 2, height // 2))
-            results = hands.process(resized_frame[:, :, ::-1])
 
-            if results.multi_hand_landmarks:  # type: ignore
-                for hand_landmarks in results.multi_hand_landmarks:  # type: ignore
-                    hands_info: list[Position] = [(0, 0) for _ in range(22)]
-                    for idx, landmark in enumerate(hand_landmarks.landmark):
-                        x = int(landmark.x * frame.shape[1])
-                        y = int(landmark.y * frame.shape[0])
-                        cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-                        hands_info[idx] = (x, y)
-                    if not pos_queue.full():
-                        pos_queue.put_nowait(
-                            HandInfo(hands_info, (width, height), time.time())
-                        )
-            t2 = time.time()
+    while cap.isOpened():
+        t1 = time.time()
+        ret, frame = cap.read()
+        frame = cv2.flip(frame, 1)
+        height, width = frame.shape[0], frame.shape[1]
+        # (width, height), img = process_img(frame)
+        # scale = max(width, height) / IMG_SIZE
+        # out = model.forward([img])[0]
+        # boxes = out["boxes"][:100]
+        # scores = out["scores"][:100]
+        # labels = out["labels"][:100]
+        # padding_w, padding_h = (
+        #     abs(int(IMG_SIZE - width / scale)) // 2,
+        #     abs(int(IMG_SIZE - height / scale)) // 2,
+        # )
+        # for i in range(min(100, len(boxes))):
+        #     if scores[i] > 0.7:
+        #         print(classes[int(labels[i])], scores[i])
+        #         pos1 = int((boxes[i][0] - padding_w) * scale), int(
+        #             (boxes[i][1] - padding_h) * scale
+        #         )
+        #         pos2 = int((boxes[i][2] - padding_w) * scale), int(
+        #             (boxes[i][3] - padding_h) * scale
+        #         )
+        #         cv2.rectangle(frame, pos1, pos2, (0, 255, 0), 2)
+        resized_frame = cv2.resize(frame, (width // 2, height // 2))
+        results = hands.process(resized_frame[:, :, ::-1])
 
-            dt, _ = fps_filter.push((t2 - t1, 0))
-            cv2.putText(
-                frame,
-                f"{(1/dt):.2f}fps",
-                (30, 30),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 0),
-            )
+        if results.multi_hand_landmarks:  # type: ignore
+            for hand_landmarks in results.multi_hand_landmarks:  # type: ignore
+                hands_info: list[Position] = [(0, 0) for _ in range(22)]
+                for idx, landmark in enumerate(hand_landmarks.landmark):
+                    x = int(landmark.x * frame.shape[1])
+                    y = int(landmark.y * frame.shape[0])
+                    cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                    hands_info[idx] = (x, y)
+                if not pos_queue.full():
+                    pos_queue.put_nowait(
+                        HandInfo(hands_info, (width, height), time.time())
+                    )
+        t2 = time.time()
+        dt, _ = fps_filter.push((t2 - t1, 0))
+        cv2.putText(
+            frame,
+            f"{(1/dt):.2f}fps",
+            (30, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+        )
 
-            cv2.imshow("test", frame)
-            key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
-            if key == ord("q"):  # 如果按下 'q' 键，退出循环
-                break
+        # cv2.imshow("test", frame)
+        # key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
+        # if key == ord("q"):  # 如果按下 'q' 键，退出循环
+        #     break
 
     cap.release()
 
@@ -181,6 +197,7 @@ def mouse_handle():
         t1 = time.time()
         cur_hand = pos_queue.get()
         (dx, dy), dt = cur_hand.anchor_diff(last_hand_info)
+        dt = max(dt, 0.01)
         dx, dy = map(int, pos_filter.push((dx, dy)))
         x_dir, y_dir = direction((dx, dy))
         speed = sqrt(dx**2 + dy**2) / max(dt, 0.001)
