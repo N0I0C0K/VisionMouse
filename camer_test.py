@@ -148,10 +148,10 @@ def raw_model():
                 (0, 255, 0),
             )
 
-            # cv2.imshow("test", frame)
-            # key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
-            # if key == ord("q"):  # 如果按下 'q' 键，退出循环
-            #     break
+            cv2.imshow("test", frame)
+            key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
+            if key == ord("q"):  # 如果按下 'q' 键，退出循环
+                break
 
     cap.release()
 

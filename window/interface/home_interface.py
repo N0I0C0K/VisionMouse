@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
 from qfluentwidgets import ScrollArea
 from random import choices
@@ -21,8 +21,9 @@ class HomeInterface(ScrollArea):
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        self.vBoxLayout.setContentsMargins(0, 0, 0, 36)
-        self.vBoxLayout.setSpacing(40)
-        self.vBoxLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # self.vBoxLayout.setContentsMargins(0, 0, 0, 36)
+        # self.vBoxLayout.setSpacing(40)
+        # self.vBoxLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        home_label = QLabel("Vision Mouse", self.view)
+        # home_label = QLabel("Vision Mouse", self.view)
+        # home_label.setFont(QFont())

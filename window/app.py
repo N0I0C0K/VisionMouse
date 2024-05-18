@@ -13,7 +13,7 @@ QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)  # type: ignore
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)  # type: ignore
 
 app = QApplication(sys.argv)
-app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)  # type: ignore
+# app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)  # type: ignore
 
 with open("style/style.qss.css", encoding="utf-8") as file:
     app.setStyleSheet(file.read())

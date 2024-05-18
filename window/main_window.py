@@ -1,8 +1,8 @@
-from qfluentwidgets import FluentWindow, FluentIcon as Icon
+from qfluentwidgets import SplitFluentWindow, FluentIcon as Icon
 from .interface import HomeInterface
 
 
-class MainWindow(FluentWindow):
+class MainWindow(SplitFluentWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("MainWindow")
@@ -19,8 +19,8 @@ class MainWindow(FluentWindow):
         self.setMinimumWidth(760)
         self.setWindowTitle("Vision Mouse")
 
-        self.navigationInterface.setAcrylicEnabled(True)
-        self.setMicaEffectEnabled(True)
+        # self.navigationInterface.setAcrylicEnabled(True)
+        # self.setMicaEffectEnabled(True)
 
     def initNavigation(self):
         self.addSubInterface(HomeInterface(self), Icon.HOME, "Home")
