@@ -13,6 +13,7 @@ app.include_router(camera_router)
 
 if config["is_dev"]:
     from fastapi.middleware.cors import CORSMiddleware
+    from utils.middle_ware import error_handling_middleware
 
     logger.info("dev mode")
 
@@ -23,3 +24,5 @@ if config["is_dev"]:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    app.middleware("http")(error_handling_middleware)

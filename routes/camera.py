@@ -4,8 +4,13 @@ from fastapi import APIRouter, WebSocket
 from fastapi.responses import StreamingResponse
 from fastapi.exceptions import WebSocketException
 
-from utils import logger
-from controllers.camera import read_real_time_camera, camera, gen_jpeg_content
+from controllers.types import CameraSettingModel
+from utils import logger, convert_named_tuple_to_dict
+from controllers.camera import (
+    read_real_time_camera,
+    camera,
+    gen_jpeg_content,
+)
 
 camera_router = APIRouter(prefix="/camera")
 
@@ -24,24 +29,30 @@ async def test_camera(websockt: WebSocket):
 
 
 @camera_router.get("/feed")
-async def video_feed():
+def video_feed():
     return StreamingResponse(
         gen_jpeg_content(), media_type="multipart/x-mixed-replace; boundary=frame"
     )
 
 
 @camera_router.get("/open")
-async def open_camera():
+def open_camera():
     camera.open()
-    return camera.state.to_dict()
+    return convert_named_tuple_to_dict(camera.state, camelCase=True)
 
 
 @camera_router.get("/state")
 async def get_camera_state():
-    return camera.state.to_dict()
+    return convert_named_tuple_to_dict(camera.state, camelCase=True)
 
 
 @camera_router.get("/close")
 async def close_camera():
     camera.close()
-    return camera.state.to_dict()
+    return convert_named_tuple_to_dict(camera.state, camelCase=True)
+
+
+@camera_router.put("/setting")
+async def update_camera_setting(setting: CameraSettingModel):
+    camera.update_camera_setting(setting)
+    return convert_named_tuple_to_dict(camera.state, camelCase=True)

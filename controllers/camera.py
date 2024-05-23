@@ -1,28 +1,11 @@
 import cv2
-from typing import NamedTuple, Iterable
+
+
+from typing import NamedTuple, Iterable, Callable, Any, Optional
 from typing_extensions import Self
 
-
-class FrameTuple(NamedTuple):
-    frame: cv2.typing.MatLike
-    width: int
-    height: int
-
-
-class SizeTuple(NamedTuple):
-    width: int
-    height: int
-
-    def to_dict(self):
-        return {"width": self.width, "height": self.height}
-
-
-class CameraState(NamedTuple):
-    is_opened: bool
-    size: SizeTuple
-
-    def to_dict(self):
-        return {"isOpened": self.is_opened, "size": self.size.to_dict()}
+from utils import logger
+from controllers.types import CameraSettingModel, CameraState, SizeTuple, FrameTuple
 
 
 class CameraHelper:
@@ -41,14 +24,25 @@ class CameraHelper:
 
     @property
     def state(self) -> CameraState:
-        return CameraState(self.is_opened, self.size)
+        return CameraState(self.is_opened, self.size, self.exposure)
 
     def open(self):
         if self.is_opened:
             return
-        self.cap = cv2.VideoCapture(0)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.size.width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.size.height)
+        logger.info("start open camera")
+        cap = self.cap
+        cap.open(0)
+        cap_index, cap_name = cap.get(cv2.CAP_PROP_POS_MSEC), cap.get(
+            cv2.CAP_PROP_POS_FRAMES
+        )
+        logger.info(f"{cap_index = }, {cap_name = }")
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc("M", "J", "P", "G"))
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.size.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.size.height)
+        cap.set(cv2.CAP_PROP_EXPOSURE, self.exposure)
+        cap.set(cv2.CAP_PROP_FPS, 30)
+
+        logger.info("open camera complete")
 
     def close(self):
         if not self.is_opened:
@@ -56,8 +50,9 @@ class CameraHelper:
         self.cap.release()  # type: ignore
 
     def __init__(self):
-        self.cap: cv2.VideoCapture | None = None
+        self.cap: cv2.VideoCapture = cv2.VideoCapture()
         self.size = SizeTuple(1280, 720)
+        self.exposure = -5
 
     def read(self):
         if not self.is_opened:
@@ -81,6 +76,13 @@ class CameraHelper:
         if cls._global_camer:
             cls._global_camer.close()
 
+    def update_camera_setting(self, setting: CameraSettingModel):
+        if self.cap is None:
+            raise RuntimeError("please init camera first")
+        if setting.exposure is not None:
+            self.cap.set(cv2.CAP_PROP_EXPOSURE, setting.exposure)
+            self.exposure = setting.exposure
+
 
 camera = CameraHelper.get_instance()
 
@@ -90,14 +92,18 @@ def read_real_time_camera() -> Iterable[FrameTuple]:
         yield camera.read()
 
 
-def read_real_time_camera_to_jpeg() -> Iterable[bytes]:
-    for frame in read_real_time_camera():
-        ret, jpeg = cv2.imencode(".jpeg", frame.frame)
+def read_real_time_camera_to_jpeg(
+    frame_gen: Iterable[cv2.typing.MatLike],
+) -> Iterable[bytes]:
+    for frame in frame_gen:
+        ret, jpeg = cv2.imencode(".jpeg", frame)
         if not ret:
             raise RuntimeError("convert raw video to jpg failed")
         yield jpeg.tobytes()
 
 
 def gen_jpeg_content() -> Iterable[bytes]:
-    for jpeg in read_real_time_camera_to_jpeg():
+    for jpeg in read_real_time_camera_to_jpeg(
+        map(lambda x: x.frame, read_real_time_camera())
+    ):
         yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n")

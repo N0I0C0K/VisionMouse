@@ -138,8 +138,8 @@ def raw_model():
         #             (boxes[i][3] - padding_h) * scale
         #         )
         #         cv2.rectangle(frame, pos1, pos2, (0, 255, 0), 2)
-        resized_frame = cv2.resize(frame, (width // 2, height // 2))
-        results = hands.process(resized_frame[:, :, ::-1])
+        # resized_frame = cv2.resize(frame, (width // 2, height // 2))
+        results = hands.process(frame[:, :, ::-1])
 
         if results.multi_hand_landmarks:  # type: ignore
             for hand_landmarks in results.multi_hand_landmarks:  # type: ignore
@@ -164,10 +164,10 @@ def raw_model():
             (0, 255, 0),
         )
 
-        # cv2.imshow("test", frame)
-        # key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
-        # if key == ord("q"):  # 如果按下 'q' 键，退出循环
-        #     break
+        cv2.imshow("test", frame)
+        key = cv2.waitKey(1) & 0xFF  # 等待按键输入（1毫秒），并取低8位
+        if key == ord("q"):  # 如果按下 'q' 键，退出循环
+            break
 
     cap.release()
 
