@@ -8,14 +8,14 @@ from tests.test_helper import *
 
 
 class TestCamera(unittest.TestCase):
-    @patch("controllers.camera.cv2.VideoCapture")
-    def test_get_real_camera(self, mock_video_capture: MagicMock):
-        mock_app = MagicMock()
+    @patch("controllers.camera.camera.cap")
+    def test_get_real_camera(self, mock_app: MagicMock):
         mock_app.isOpened.return_value = True
         test_frame = get_mock_frame()
         mock_app.read.return_value = (True, test_frame)
         mock_app.set.return_value = None
-        mock_video_capture.return_value = mock_app
+        mock_app.get.return_value = 0
+        mock_app.open.return_value = None
         camera.open()
         gen = read_real_time_camera()
 

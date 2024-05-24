@@ -8,6 +8,7 @@ class FrameTuple(NamedTuple):
     frame: cv2.typing.MatLike
     width: int
     height: int
+    ctime: float
 
 
 class SizeTuple(NamedTuple):

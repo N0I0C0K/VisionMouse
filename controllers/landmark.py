@@ -17,7 +17,7 @@ class HandLandMarkModel:
         )
 
     def forward(self, frame_tuple: FrameTuple) -> list[HandInfo]:
-        frame, width, height = frame_tuple
+        frame, width, height, _ = frame_tuple
         results = self.hands.process(frame[:, :, ::-1])
         hand_info_list: list[HandInfo] = []
         if results.multi_hand_landmarks:  # type: ignore
@@ -31,3 +31,6 @@ class HandLandMarkModel:
                     HandInfo(hands_info, (width, height), time.time())
                 )
         return hand_info_list
+
+
+land_mark_model = HandLandMarkModel()

@@ -13,7 +13,7 @@ class TestCamera(TestCase):
         self, mock_read_real_time_camera: MagicMock
     ):
         mock_read_real_time_camera.return_value = [
-            FrameTuple(get_mock_frame(), 200, 300)
+            FrameTuple(get_mock_frame(), 200, 300, 0.0)
         ]
         with test_client.websocket_connect("/camera/test") as ws:
 

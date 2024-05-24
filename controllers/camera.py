@@ -1,7 +1,7 @@
 import cv2
+import time
 
-
-from typing import NamedTuple, Iterable, Callable, Any, Optional
+from typing import Iterable
 from typing_extensions import Self
 
 from utils import logger
@@ -46,7 +46,8 @@ class CameraHelper:
 
     def close(self):
         if not self.is_opened:
-            raise RuntimeError("cap is not opened")
+            logger.warning("cap is not opening, but want to close")
+            return
         self.cap.release()  # type: ignore
 
     def __init__(self):
@@ -54,16 +55,19 @@ class CameraHelper:
         self.size = SizeTuple(1280, 720)
         self.exposure = -5
 
-    def read(self):
+    def read(self, auto_open: bool = False):
         if not self.is_opened:
-            raise RuntimeError("cap is not opened")
+            if auto_open:
+                self.open()
+            else:
+                raise RuntimeError("cap is not opened")
         ret, frame = self.cap.read()  # type: ignore
         if not ret:
             raise RuntimeError("read camera failed")
         frame = cv2.flip(frame, 1)
         height, width = frame.shape[0], frame.shape[1]
         self.size = SizeTuple(width, height)
-        return FrameTuple(frame, width, height)
+        return FrameTuple(frame, width, height, time.time())
 
     @classmethod
     def get_instance(cls) -> Self:
@@ -82,6 +86,9 @@ class CameraHelper:
         if setting.exposure is not None:
             self.cap.set(cv2.CAP_PROP_EXPOSURE, setting.exposure)
             self.exposure = setting.exposure
+
+    def __del__(self):
+        self.close()
 
 
 camera = CameraHelper.get_instance()
