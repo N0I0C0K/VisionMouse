@@ -10,21 +10,30 @@ class BaseMatch(Protocol):
     def __call__(self, hand_info: HandInfo) -> bool:
         raise NotImplementedError
 
+    def __hash__(self) -> int:
+        raise NotImplementedError
 
-def gen_match(lt: LandMark, rt: LandMark) -> BaseMatch:
-    def match(hand_info: HandInfo) -> bool:
-        return hand_info.is_touched(lt, rt)
 
-    return match
+class MatchGen(BaseMatch):
+    def __init__(self, lt: LandMark, rt: LandMark) -> None:
+        self.lt = lt
+        self.rt = rt
+
+    def __call__(self, hand_info: HandInfo) -> bool:
+        return hand_info.is_touched(self.lt, self.rt)
+
+    def __hash__(self) -> int:
+        return hash(self.lt) ^ hash(self.rt)
 
 
 class LandMarkMatch(DictEnum):
-    Index_Thumb = gen_match(LandMark.THUMB_TIP, LandMark.INDEX_FINGER_TIP)
-    Middle_Thumb = gen_match(LandMark.MIDDLE_FINGER_TIP, LandMark.INDEX_FINGER_TIP)
-    Ring_Thumb = gen_match(LandMark.RING_FINGER_TIP, LandMark.INDEX_FINGER_TIP)
-    Pinky_Thumb = gen_match(LandMark.PINKY_TIP, LandMark.INDEX_FINGER_TIP)
+    Index_Thumb = MatchGen(LandMark.INDEX_FINGER_TIP, LandMark.THUMB_TIP)
+    Middle_Thumb = MatchGen(LandMark.MIDDLE_FINGER_TIP, LandMark.THUMB_TIP)
+    Ring_Thumb = MatchGen(LandMark.RING_FINGER_TIP, LandMark.THUMB_TIP)
+    Pinky_Thumb = MatchGen(LandMark.PINKY_TIP, LandMark.THUMB_TIP)
 
     def __init__(self, func: BaseMatch) -> None:
+        super().__init__()
         self.func = func
 
     def match(self, hand_info: HandInfo) -> bool:

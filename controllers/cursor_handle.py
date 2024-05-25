@@ -37,9 +37,13 @@ class CursorHandler(Protocol):
         raise NotImplementedError
 
 
+def safe_division(a, b) -> float:
+    return a / b if b != 0 else a / 0.1
+
+
 def direction(t: tuple[int, int]) -> tuple[float, float]:
     x, y = t
-    dis = sqrt(x * x + y * y)
+    dis = max(sqrt(x * x + y * y), 0.001)
     return x / dis, y / dis
 
 
@@ -66,14 +70,48 @@ class MoveToHandler(CursorHandler):
         return _position()
 
 
+class LeftButtonHandler:
+    def __init__(self) -> None:
+        self._down = False
+
+    def down(self, x: int, y: int):
+        if not self._down:
+            _mouseDown(x, y, "left")
+            self._down = True
+
+    def up(self, x: int, y: int):
+        if self._down:
+            _mouseUp(x, y, "left")
+            self._down = False
+
+
+left_button_handler = LeftButtonHandler()
+
+
+class LeftButtonDownHandler(CursorHandler):
+    def __init__(self, handler: LeftButtonHandler) -> None:
+        self.handler = handler
+
+    def __call__(self, x: int, y: int):
+        self.handler.down(x, y)
+
+
+class LeftButtonUpHandler(CursorHandler):
+    def __init__(self, handler: LeftButtonHandler) -> None:
+        self.handler = handler
+
+    def __call__(self, x: int, y: int):
+        self.handler.up(x, y)
+
+
 class LeftClickHandler(CursorHandler):
     def __call__(self, x: int, y: int):
-        _mouseDown(x, y, "left")
+        _click(x, y, "left")
 
 
 class RightClickHandler(CursorHandler):
     def __call__(self, x: int, y: int):
-        _mouseDown(x, y, "right")
+        _click(x, y, "right")
 
 
 class ScrollDownHandler(CursorHandler):
@@ -92,6 +130,8 @@ class CursorHandleEnum(DictEnum):
     RightClick = RightClickHandler()
     ScrollDown = ScrollDownHandler()
     ScrollUp = ScrollUpHandler()
+    LeftDown = LeftButtonDownHandler(left_button_handler)
+    LeftUp = LeftButtonUpHandler(left_button_handler)
 
     def __init__(self, _handler: CursorHandler) -> None:
         self._handler = _handler
