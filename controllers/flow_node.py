@@ -98,11 +98,15 @@ class LandMarkFilterNode(FlowNodeBase[list[HandInfo], HandInfo]):
         self.last_hand: HandInfo | None = None
 
     def forward(self, hand_info_list: list[HandInfo]) -> HandInfo | _NoResult:
-        if len(hand_info_list) == 0:
+        l_hand = len(hand_info_list)
+        if l_hand == 0:
+            self.last_hand = None
             self.output = NoResult
             return NoResult
-        if self.last_hand is None:
+
+        if l_hand == 1 or self.last_hand is None:
             self.last_hand = hand_info_list[0]
+            self.output = hand_info_list[0]
             return hand_info_list[0]
 
         t = min_item(hand_info_list, lambda x: x.distance(self.last_hand))  # type: ignore

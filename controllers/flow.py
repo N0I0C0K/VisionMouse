@@ -77,7 +77,7 @@ def init_graph():
 
     hands_filter_node.add_next(cursor_move_handle_node)
 
-    # hands_filter_node.add_next(draw_node)
+    hands_filter_node.add_next(draw_node)
 
     draw_node.add_next(show_frame_node)
 
