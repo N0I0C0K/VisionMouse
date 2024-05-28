@@ -1,5 +1,4 @@
 import unittest
-import cv2
 from unittest.mock import patch, MagicMock
 
 from controllers.camera import read_real_time_camera, camera

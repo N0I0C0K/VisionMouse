@@ -8,8 +8,11 @@ from utils.types import Position
 
 logger = logging.getLogger("vision_mouse")
 logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler(sys.stdout))
-
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setFormatter(
+    logging.Formatter("%(name)s %(asctime)s %(module)s: %(message)s")
+)
+logger.addHandler(stdout_handler)
 
 config = {"is_dev": os.getenv("is_dev", "1") == "1"}
 

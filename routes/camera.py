@@ -11,6 +11,7 @@ from controllers.camera import (
     camera,
     gen_jpeg_content,
 )
+from controllers.flows.flow import flow_manager
 
 camera_router = APIRouter(prefix="/camera")
 
@@ -30,6 +31,8 @@ async def test_camera(websockt: WebSocket):
 
 @camera_router.get("/feed")
 def video_feed():
+    if flow_manager.running:
+        raise RuntimeError
     return StreamingResponse(
         gen_jpeg_content(), media_type="multipart/x-mixed-replace; boundary=frame"
     )

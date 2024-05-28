@@ -1,5 +1,5 @@
 from controllers.cursor_handle import direction, move, current_position
-from controllers.models import HandInfo
+from controllers.hand_info import HandInfo
 from filter import SlidingWindowMeanFilter
 from utils.iter import min_item
 

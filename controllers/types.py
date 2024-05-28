@@ -22,7 +22,7 @@ class CameraState(NamedTuple):
     exposure: int
 
 
-Position = tuple[int, int]
+Position = tuple[int | float, int | float]
 
 
 class CameraSettingModel(BaseModel):

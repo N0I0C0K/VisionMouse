@@ -1,6 +1,6 @@
 from typing import Any, Protocol
 
-from controllers.models import HandInfo, LandMark
+from controllers.hand_info import HandInfo, LandMark
 from utils.enum import DictEnum
 
 from enum import Enum

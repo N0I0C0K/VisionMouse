@@ -1,1 +1,1 @@
-Position = tuple[int, int]
+Position = tuple[int | float, int | float]

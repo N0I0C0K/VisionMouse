@@ -3,7 +3,7 @@ from unittest import TestCase
 from utils import Position
 
 from controllers.landmark_match import LandMarkMatch
-from controllers.models import HandInfo
+from controllers.hand_info import HandInfo
 
 
 def gen_test_hand_info() -> HandInfo:
