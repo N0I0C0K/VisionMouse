@@ -1,5 +1,6 @@
 import asyncio
 from typing import cast, Any
+from contextlib import suppress
 
 from fastapi import APIRouter, WebSocket
 from fastapi.websockets import WebSocketState
@@ -10,9 +11,13 @@ from controllers.flows.flow import (
     draw_node,
     land_mark_model_node,
     hands_filter_node,
+    gen_gesture_and_cursor_handle_mapping_dict,
 )
 from controllers.hand_info import HandInfo
 from controllers.flows.node import NoResult
+from controllers.cursor_handle import add_on_handle_execute, CursorHandleEnum
+from controllers.landmark_match import LandMarkMatch
+from controllers.types import Position
 
 from utils import logger
 
@@ -68,4 +73,43 @@ async def gen_land_mark_sample(ws: WebSocket):
         except:
             break
     logger.info("land mark close")
-    await ws.close()
+    with suppress(RuntimeError):
+        await ws.close()
+
+
+@flow_api.websocket("/mouseAction/feed")
+async def mouse_action_feed(ws: WebSocket):
+    await ws.accept()
+    que: asyncio.Queue[tuple[str, Position, float]] = asyncio.Queue()
+
+    def call_back(name: str, pos, t):
+        print(name, pos)
+        que.put_nowait((name, pos, t))
+
+    clean = add_on_handle_execute(call_back)
+
+    with suppress(Exception):
+        while ws.client_state == WebSocketState.CONNECTED:
+            with suppress(TimeoutError):
+                name, pos, t = await asyncio.wait_for(que.get(), 2)
+                await ws.send_json(
+                    {
+                        "name": name,
+                        "time": t,
+                        "pos": {"x": pos[0], "y": pos[1]},
+                    }
+                )
+
+    clean()
+    logger.info("mouse action close")
+    with suppress(RuntimeError):
+        await ws.close()
+
+
+@flow_api.get("/connects")
+async def get_gesture_and_cursor_connect():
+    return {
+        "gestureMatches": list(LandMarkMatch.names()),
+        "cursorHandlers": list(CursorHandleEnum.names()),
+        "connect": gen_gesture_and_cursor_handle_mapping_dict(),
+    }

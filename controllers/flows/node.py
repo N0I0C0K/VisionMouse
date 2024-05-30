@@ -213,8 +213,9 @@ class ShowFrameNode(FlowNodeBase[FrameTuple, _NoResult]):
             close()
         return NoResult
 
-    def __del__(self):
+    def clean_effect(self):
         close()
+        return super().clean_effect()
 
 
 class CombineFlowNode(FlowNodeBase[_InPut, _Output]):

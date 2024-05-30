@@ -37,6 +37,7 @@ class HandInfo:
     hand_landmark_pos: list[Position]
     camera_size: tuple[int, int]
     c_time: float
+    gesture: None = None
     _unit: int = field(init=False)
 
     def __post_init__(self):

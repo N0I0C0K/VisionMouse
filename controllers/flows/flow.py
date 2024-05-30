@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import Any, Iterable, TypeVar, Callable
+from typing import Any, Iterable, TypeVar, Callable, Protocol, Generic
 
 from controllers.flows.node import (
     CameraNode,
@@ -22,6 +22,7 @@ from controllers.landmark_match import LandMarkMatch
 from controllers.cursor_handle import CursorHandleEnum
 
 from utils import config, logger
+from utils.threading import set_thread_priority_to_high
 
 T = TypeVar("T")
 
@@ -34,6 +35,12 @@ show_frame_node = ShowFrameNode()
 draw_node = DrawLandMarkNode(camera_node)
 
 
+class WindowHandler(Protocol, Generic[T]):
+    name: str
+
+    def __call__(self, it: Iterable[T]) -> T: ...
+
+
 def _all(it: Iterable[bool]) -> bool:
     return all(it)
 
@@ -42,29 +49,48 @@ def _all_not(it: Iterable[bool]) -> bool:
     return all(not i for i in it)
 
 
-def _jump_true(it: Iterable[bool]) -> bool:
-    it = iter(it)
-    return not next(it) and _all(it)
+class JumpTrue(WindowHandler[bool]):
+    name = "JumpTrue"
+
+    def __call__(self, it: Iterable[bool]) -> bool:
+        it = iter(it)
+        return not next(it) and _all(it)
 
 
-def _jump_false(it: Iterable[bool]) -> bool:
-    it = iter(it)
-    return next(it) and _all_not(it)
+_jump_true = JumpTrue()
 
 
-GestureCursorGen = tuple[
-    LandMarkMatch, Callable[[Iterable[bool]], bool], CursorHandleEnum
-]
+class JumpFalse(WindowHandler[bool]):
+    name = "JumpFalse"
 
-gesture_and_cursor_handle_list: list[GestureCursorGen] = [
-    (LandMarkMatch.Index_Thumb, _jump_true, CursorHandleEnum.LeftDown),
-    (LandMarkMatch.Index_Thumb, _jump_false, CursorHandleEnum.LeftUp),
-    (LandMarkMatch.Middle_Thumb, _jump_true, CursorHandleEnum.RightClick),
-]
+    def __call__(self, it: Iterable[bool]) -> bool:
+        it = iter(it)
+        return next(it) and _all_not(it)
 
 
-def gen_gesture_and_cursor_combine_node(gesture_and_cursor: GestureCursorGen):
-    gesture, fn, cursor_handle = gesture_and_cursor
+_jump_false = JumpFalse()
+
+GestureMatcher = tuple[LandMarkMatch, WindowHandler[bool]]
+
+gesture_and_cursor_handle_mapping: dict[GestureMatcher, CursorHandleEnum] = {
+    (LandMarkMatch.Index_Thumb, _jump_true): CursorHandleEnum.LeftDown,
+    (LandMarkMatch.Index_Thumb, _jump_false): CursorHandleEnum.LeftUp,
+    (LandMarkMatch.Middle_Thumb, _jump_true): CursorHandleEnum.RightClick,
+}
+
+
+def gen_gesture_and_cursor_handle_mapping_dict() -> list[dict]:
+    res = [
+        {"match": ges[0].name, "matchFunc": ges[1].name, "handle": cur.name}
+        for ges, cur in gesture_and_cursor_handle_mapping.items()
+    ]
+    return res
+
+
+def gen_gesture_and_cursor_combine_node(
+    gesture_matcher: GestureMatcher, cursor_handle: CursorHandleEnum
+):
+    gesture, fn = gesture_matcher
     pre_node = PreResultWindowNode(2, fn)
     gesture_node = GestureMatchNode(gesture)
     cursor_node = CursorHandleNode(cursor_move_handle_node, cursor_handle)
@@ -95,8 +121,8 @@ def init_graph():
 
         draw_node.add_next(show_frame_node)
 
-    for it in gesture_and_cursor_handle_list:
-        hands_filter_node.add_next(gen_gesture_and_cursor_combine_node(it))
+    for it, handle in gesture_and_cursor_handle_mapping.items():
+        hands_filter_node.add_next(gen_gesture_and_cursor_combine_node(it, handle))
 
 
 class FlowManage:
@@ -106,6 +132,7 @@ class FlowManage:
         self.task: asyncio.Task | None = None
 
     def _start(self):
+        set_thread_priority_to_high()
         self.start_node.init()
         while self._running:
             run_flow(self.start_node, None)

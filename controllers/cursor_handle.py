@@ -1,7 +1,10 @@
 import sys
+import secrets
+import time
+
 from math import sqrt
 from enum import Enum
-from typing import Protocol
+from typing import Protocol, Callable, Any
 from functools import cache
 
 SYS_PLATFORM = sys.platform
@@ -124,6 +127,17 @@ class ScrollUpHandler(CursorHandler):
         _vscroll(10, x, y)
 
 
+HandleCallback = Callable[[str, Position, float], None]
+
+on_cursor_handle_execute: dict[str, HandleCallback] = dict()
+
+
+def add_on_handle_execute(func: HandleCallback) -> Callable[[], Any]:
+    key = secrets.token_hex(8)
+    on_cursor_handle_execute[key] = func
+    return lambda: on_cursor_handle_execute.pop(key)
+
+
 class CursorHandleEnum(DictEnum):
     MoveTo = MoveToHandler()
     LeftClick = LeftClickHandler()
@@ -138,3 +152,5 @@ class CursorHandleEnum(DictEnum):
 
     def execute(self, x: int, y: int):
         self._handler(x, y)
+        for func in on_cursor_handle_execute.values():
+            func(self.name, (x, y), time.time())
