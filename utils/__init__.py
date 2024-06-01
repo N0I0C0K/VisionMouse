@@ -23,7 +23,7 @@ def convert_str_to_camelCase(src: str) -> str:
 
 
 def convert_named_tuple_to_dict(
-    tar: NamedTuple, *, camelCase: bool = False
+    tar: NamedTuple, *, camelCase: bool = True
 ) -> dict[str, Any]:
     t_dict = tar._asdict()
     for key, val in t_dict.items():

@@ -25,5 +25,25 @@ class CameraState(NamedTuple):
 Position = tuple[int | float, int | float]
 
 
+class PositionTuple(NamedTuple):
+    x: float | int
+    y: float | int
+
+
 class CameraSettingModel(BaseModel):
     exposure: Optional[int] = None
+
+
+class MouseStateModel(BaseModel):
+    baseSpeed: Optional[float] = None
+    acceleration: Optional[float] = None
+
+
+class FlowConnectItemModel(BaseModel):
+    match: str
+    matchFunc: str
+    handle: str
+
+
+class FlowConnectModel(BaseModel):
+    data: list[FlowConnectItemModel]

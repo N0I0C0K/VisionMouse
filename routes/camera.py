@@ -13,10 +13,10 @@ from controllers.camera import (
 )
 from controllers.flows.flow import flow_manager
 
-camera_router = APIRouter(prefix="/camera")
+camera_api = APIRouter(prefix="/camera")
 
 
-@camera_router.websocket("/test")
+@camera_api.websocket("/test")
 async def test_camera(websockt: WebSocket):
     await websockt.accept()
     try:
@@ -29,7 +29,7 @@ async def test_camera(websockt: WebSocket):
         await websockt.close()
 
 
-@camera_router.get("/feed")
+@camera_api.get("/feed")
 def video_feed():
     if flow_manager.running:
         raise RuntimeError
@@ -38,24 +38,24 @@ def video_feed():
     )
 
 
-@camera_router.get("/open")
+@camera_api.get("/open")
 def open_camera():
     camera.open()
     return convert_named_tuple_to_dict(camera.state, camelCase=True)
 
 
-@camera_router.get("/state")
+@camera_api.get("/state")
 async def get_camera_state():
     return convert_named_tuple_to_dict(camera.state, camelCase=True)
 
 
-@camera_router.get("/close")
+@camera_api.get("/close")
 async def close_camera():
     camera.close()
     return convert_named_tuple_to_dict(camera.state, camelCase=True)
 
 
-@camera_router.put("/setting")
+@camera_api.put("/setting")
 async def update_camera_setting(setting: CameraSettingModel):
     camera.update_camera_setting(setting)
     return convert_named_tuple_to_dict(camera.state, camelCase=True)

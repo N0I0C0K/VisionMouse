@@ -6,12 +6,13 @@ from controllers.camera import camera
 from controllers.cursor_handle import CursorHandleEnum
 from controllers.hand_info import HandInfo
 from controllers.hand_move import hand_move_handler
-from controllers.landmark_match import LandMarkMatch
+from controllers.landmark_match import GestureMatch
 from controllers.show_local import close, draw_circle, show_frame_local
 from controllers.types import FrameTuple, Position
 
 from controllers.model.landmark import HandLandMarkModel
 from controllers.model.landmark_v2 import HandLandMarkModelV2
+from controllers.model.gesture import GestureModel
 
 from utils import logger
 from utils.iter import min_item
@@ -160,7 +161,7 @@ class CursorMoveHandleNode(FlowNodeBase[HandInfo, Position]):
 
 class GestureMatchNode(FlowNodeBase[HandInfo, bool]):
 
-    def __init__(self, matcher: LandMarkMatch) -> None:
+    def __init__(self, matcher: GestureMatch) -> None:
         super().__init__()
         self.matcher = matcher
 
@@ -281,4 +282,25 @@ class LandMarkV2Node(FlowNodeBase[FrameTuple, list[HandInfo]]):
     def clean_effect(self):
         assert self.land_mark_v2 is not None
         self.land_mark_v2.close()
+        super().clean_effect()
+
+
+class GestureRecognizeNode(FlowNodeBase[FrameTuple, list[HandInfo]]):
+    def __init__(self) -> None:
+        super().__init__()
+        self.model = None
+
+    def init(self):
+        self.model = GestureModel()
+        super().init()
+
+    def forward(self, _in: FrameTuple) -> list[HandInfo]:
+        assert self.model is not None
+        res = self.model.forward(_in)
+        self.output = res
+        return res
+
+    def clean_effect(self):
+        assert self.model is not None
+        self.model.close()
         super().clean_effect()

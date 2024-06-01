@@ -4,6 +4,19 @@
 # while True:
 #     start_flow()
 
-import json
+import pydantic
 
-print(json.dumps({(1, 1): 2, (2, 2): 2}, indent=4))
+
+class Mod(pydantic.BaseModel):
+    dfsdf: str
+
+
+class MouseStateModel(pydantic.BaseModel):
+    baseSpeed: float
+    acceleration: float
+    p: list[Mod]
+
+
+model = MouseStateModel(baseSpeed=1.1, acceleration=1.1, p=[Mod(dfsdf="1212")])
+
+print(model.model_dump())

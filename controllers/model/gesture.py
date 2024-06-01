@@ -13,7 +13,7 @@ from mediapipe.tasks.python.vision.gesture_recognizer import (
 
 
 from controllers.types import FrameTuple
-from controllers.hand_info import HandInfo
+from controllers.hand_info import HandInfo, Gesture
 
 model_path = "./controllers/model/gesture_recognizer.task"
 
@@ -27,6 +27,7 @@ class GestureModel:
             running_mode=VisionTaskRunningMode.VIDEO,
             num_hands=2,
             min_hand_detection_confidence=0.7,
+            min_hand_presence_confidence=0.7,
         )
         self.landmarker = GestureRecognizer.create_from_options(options)
 
@@ -37,11 +38,17 @@ class GestureModel:
         )
         res: list[HandInfo] = []
         width, height = frame.width, frame.height
-        for hand_pos in hand_land_mark_result.hand_landmarks:
+        for hand_pos, gesture in zip(
+            hand_land_mark_result.hand_landmarks, hand_land_mark_result.gestures
+        ):
             land_pos = [
                 (float(pos.x * width), float(pos.y * height)) for pos in hand_pos
             ]
-            res.append(HandInfo(land_pos, (width, height), time.time()))
+
+            hand_info = HandInfo(land_pos, (width, height), time.time())
+            if gesture and gesture[0].category_name != "None":
+                hand_info.gesture = Gesture[gesture[0].category_name]
+            res.append(hand_info)
         return res
 
     def close(self):

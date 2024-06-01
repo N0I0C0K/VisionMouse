@@ -9,6 +9,7 @@ from controllers.flows.node import (
     LandMarkFilterNode,
     LandMarkModelNode,
     LandMarkV2Node,
+    GestureRecognizeNode,
     ShowFrameNode,
     PreResultWindowNode,
     CombineFlowNode,
@@ -18,7 +19,7 @@ from controllers.flows.node import (
     run_flow,
     NoResult,
 )
-from controllers.landmark_match import LandMarkMatch
+from controllers.landmark_match import GestureMatch
 from controllers.cursor_handle import CursorHandleEnum
 
 from utils import config, logger
@@ -28,7 +29,7 @@ T = TypeVar("T")
 
 camera_node = CameraNode()
 
-land_mark_model_node = LandMarkModelNode()
+land_mark_model_node = GestureRecognizeNode()
 hands_filter_node = LandMarkFilterNode()
 cursor_move_handle_node = CursorMoveHandleNode()
 show_frame_node = ShowFrameNode()
@@ -70,16 +71,16 @@ class JumpFalse(WindowHandler[bool]):
 
 _jump_false = JumpFalse()
 
-GestureMatcher = tuple[LandMarkMatch, WindowHandler[bool]]
+GestureMatcher = tuple[GestureMatch, WindowHandler[bool]]
 
 gesture_and_cursor_handle_mapping: dict[GestureMatcher, CursorHandleEnum] = {
-    (LandMarkMatch.Index_Thumb, _jump_true): CursorHandleEnum.LeftDown,
-    (LandMarkMatch.Index_Thumb, _jump_false): CursorHandleEnum.LeftUp,
-    (LandMarkMatch.Middle_Thumb, _jump_true): CursorHandleEnum.RightClick,
+    (GestureMatch.Index_Thumb, _jump_true): CursorHandleEnum.LeftDown,
+    (GestureMatch.Index_Thumb, _jump_false): CursorHandleEnum.LeftUp,
+    (GestureMatch.Middle_Thumb, _jump_true): CursorHandleEnum.RightClick,
 }
 
 
-def gen_gesture_and_cursor_handle_mapping_dict() -> list[dict]:
+def gen_gesture_and_cursor_handle_mapping_list() -> list[dict]:
     res = [
         {"match": ges[0].name, "matchFunc": ges[1].name, "handle": cur.name}
         for ges, cur in gesture_and_cursor_handle_mapping.items()
@@ -87,12 +88,24 @@ def gen_gesture_and_cursor_handle_mapping_dict() -> list[dict]:
     return res
 
 
+def set_gesture_and_cursor_handle_mapping(data: list[dict]):
+    if flow_manager.running or _inited:
+        raise RuntimeError("can not change during running")
+
+    gesture_and_cursor_handle_mapping.clear()
+    for t in data:
+        gesture_matcher = GestureMatch[t["match"]]
+        match_func = _jump_false if t["matchFunc"] == "JumpFalse" else _jump_true
+        handler = CursorHandleEnum[t["handle"]]
+        gesture_and_cursor_handle_mapping[(gesture_matcher, match_func)] = handler
+
+
 def gen_gesture_and_cursor_combine_node(
     gesture_matcher: GestureMatcher, cursor_handle: CursorHandleEnum
 ):
     gesture, fn = gesture_matcher
-    pre_node = PreResultWindowNode(2, fn)
     gesture_node = GestureMatchNode(gesture)
+    pre_node = PreResultWindowNode(2, fn)
     cursor_node = CursorHandleNode(cursor_move_handle_node, cursor_handle)
 
     gesture_node.add_next(pre_node)
@@ -125,6 +138,26 @@ def init_graph():
         hands_filter_node.add_next(gen_gesture_and_cursor_combine_node(it, handle))
 
 
+def _clear_next_nodes(*nodes: FlowNode):
+    for n in nodes:
+        n.next_nodes.clear()
+
+
+def clean_graph():
+    global _inited
+    if not _inited:
+        return
+    _inited = False
+
+    _clear_next_nodes(
+        camera_node,
+        land_mark_model_node,
+        hands_filter_node,
+        draw_node,
+        cursor_move_handle_node,
+    )
+
+
 class FlowManage:
     def __init__(self, start_node: FlowNode[None, Any]) -> None:
         self.start_node = start_node
@@ -137,6 +170,7 @@ class FlowManage:
         while self._running:
             run_flow(self.start_node, None)
         self.start_node.clean_effect()
+        clean_graph()
         logger.info("flow stop")
 
     @property

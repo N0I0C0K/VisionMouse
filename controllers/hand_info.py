@@ -32,12 +32,23 @@ class LandMark(IntEnum):
     PINKY_TIP = 20
 
 
+class Gesture(IntEnum):
+    Unknown = 0
+    Closed_Fist = 1
+    Open_Palm = 2
+    Pointing_Up = 3
+    Thumb_Down = 4
+    Thumb_Up = 5
+    Victory = 6
+    ILoveYou = 7
+
+
 @dataclass
 class HandInfo:
     hand_landmark_pos: list[Position]
     camera_size: tuple[int, int]
     c_time: float
-    gesture: None = None
+    gesture: Gesture | None = None
     _unit: int = field(init=False)
 
     def __post_init__(self):

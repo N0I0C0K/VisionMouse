@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from utils import Position
 
-from controllers.landmark_match import LandMarkMatch
+from controllers.landmark_match import GestureMatch
 from controllers.hand_info import HandInfo
 
 
@@ -17,7 +17,7 @@ class TestLandMarkMatch(TestCase):
     def test_index_match(self):
         hand_info = gen_test_hand_info()
 
-        for matcher in LandMarkMatch:
+        for matcher in GestureMatch:
             res = matcher.match(hand_info)
 
             assert res == True
