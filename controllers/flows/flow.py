@@ -166,6 +166,8 @@ class FlowManage:
 
     def _start(self):
         set_thread_priority_to_high()
+        logger.info("flow start")
+        init_graph()
         self.start_node.init()
         while self._running:
             run_flow(self.start_node, None)
@@ -187,7 +189,6 @@ class FlowManage:
             await asyncio.sleep(0.5)
 
     def start(self, in_async: bool = False):
-        init_graph()
         if self.running:
             raise RuntimeError("网络已经在运行")
         self._running = True

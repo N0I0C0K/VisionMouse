@@ -1,11 +1,12 @@
 from enum import IntEnum
+from math import sqrt
 
 from dataclasses import dataclass, field
 from typing_extensions import Self
 
 
 from utils import distance
-from utils.types import Position
+from utils.types import Position, Position3D
 
 
 class LandMark(IntEnum):
@@ -43,33 +44,40 @@ class Gesture(IntEnum):
     ILoveYou = 7
 
 
+def distance_nd(pos1: tuple[float | int, ...], pos2: tuple[float | int, ...]):
+    res = 0
+    for t1, t2 in zip(pos1, pos2):
+        res += (t2 - t1) * (t2 - t1)
+    return sqrt(res)
+
+
 @dataclass
 class HandInfo:
-    hand_landmark_pos: list[Position]
+    hand_landmark_pos: list[Position3D]
     camera_size: tuple[int, int]
     c_time: float
     gesture: Gesture | None = None
-    _unit: int = field(init=False)
+    _unit: float = field(init=False)
 
     def __post_init__(self):
-        self._unit = distance(self.hand_landmark_pos[0], self.anchor)
+        self._unit = distance_nd(self.hand_landmark_pos[0], self.anchor)
 
     @property
-    def anchor(self) -> Position:
+    def anchor(self) -> Position3D:
         """
         获取中指根部的坐标，作为整个手掌的锚点
         """
         return self.hand_landmark_pos[9]
 
     @property
-    def unit(self) -> int:
+    def unit(self) -> float:
         return self._unit
 
     def is_touched(self, lt: LandMark, rt: LandMark) -> bool:
-        return self.get_mark_distance(lt, rt) * 16 < self.unit
+        return self.get_mark_distance(lt, rt) * 2.5 < self.unit
 
-    def get_mark_distance(self, lt: LandMark, rt: LandMark) -> int:
-        return distance(
+    def get_mark_distance(self, lt: LandMark, rt: LandMark) -> float:
+        return distance_nd(
             self.hand_landmark_pos[lt.value], self.hand_landmark_pos[rt.value]
         )
 
@@ -78,8 +86,8 @@ class HandInfo:
         t = other.anchor
         return (p[0] - t[0], p[1] - t[1]), self.c_time - other.c_time
 
-    def distance(self, other: Self) -> int:
-        return distance(self.anchor, other.anchor)
+    def distance(self, other: Self) -> float:
+        return distance_nd(self.anchor, other.anchor)
 
     def encode_pos(self) -> str:
         return "/".join(map(lambda x: f"{x[0]},{x[1]}", self.hand_landmark_pos))

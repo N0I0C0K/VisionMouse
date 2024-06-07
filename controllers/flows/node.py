@@ -12,7 +12,7 @@ from controllers.types import FrameTuple, Position
 
 from controllers.model.landmark import HandLandMarkModel
 from controllers.model.landmark_v2 import HandLandMarkModelV2
-from controllers.model.gesture import GestureModel
+from controllers.model.gesture import GestureModel, global_gesture_model
 
 from utils import logger
 from utils.iter import min_item
@@ -288,10 +288,10 @@ class LandMarkV2Node(FlowNodeBase[FrameTuple, list[HandInfo]]):
 class GestureRecognizeNode(FlowNodeBase[FrameTuple, list[HandInfo]]):
     def __init__(self) -> None:
         super().__init__()
-        self.model = None
+        self.model = global_gesture_model
 
     def init(self):
-        self.model = GestureModel()
+        # self.model = GestureModel()
         super().init()
 
     def forward(self, _in: FrameTuple) -> list[HandInfo]:
@@ -302,5 +302,5 @@ class GestureRecognizeNode(FlowNodeBase[FrameTuple, list[HandInfo]]):
 
     def clean_effect(self):
         assert self.model is not None
-        self.model.close()
+        # self.model.close()
         super().clean_effect()
