@@ -14,6 +14,7 @@ from controllers.flows.flow import (
     gen_gesture_and_cursor_handle_mapping_list,
     set_gesture_and_cursor_handle_mapping,
 )
+from controllers.flows.window import handle_dict
 from controllers.hand_info import HandInfo
 from controllers.flows.node import NoResult
 from controllers.cursor_handle import add_on_handle_execute, CursorHandleEnum
@@ -112,6 +113,7 @@ async def get_gesture_and_cursor_connect():
     return {
         "gestureMatches": list(GestureMatch.names()),
         "cursorHandlers": list(CursorHandleEnum.names()),
+        "matchFuncs": list(handle_dict.keys()),
         "connect": gen_gesture_and_cursor_handle_mapping_list(),
     }
 

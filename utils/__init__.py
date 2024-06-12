@@ -49,5 +49,5 @@ def convert_snake_case_dict_to_camelCase(src: dict[str, Any]) -> dict[str, Any]:
     return camel_dict
 
 
-def distance(pos1: Position, pos2: Position) -> int:
+def distance(pos1: Position, pos2: Position) -> float:
     return (pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2

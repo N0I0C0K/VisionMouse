@@ -171,18 +171,29 @@ class GestureMatchNode(FlowNodeBase[HandInfo, bool]):
         return t
 
 
-class PreResultWindowNode(FlowNodeBase[_InPut, _InPut]):
-    def __init__(self, n: int, fn: Callable[[Iterable[_InPut]], _InPut]) -> None:
+_WindowItemType = TypeVar("_WindowItemType")
+
+
+class PreResultWindowNode(
+    FlowNodeBase[_InPut, _Output], Generic[_InPut, _Output, _WindowItemType]
+):
+    def __init__(
+        self,
+        n: int,
+        fn: Callable[[Iterable[_WindowItemType]], _Output],
+        get_item_fn: Callable[[_InPut], _WindowItemType] | None = None,
+    ) -> None:
         """
         适用于对于历史数据的处理，比如需要同时满足前面几次输入都为 true 等
         """
         super().__init__()
         self.n = n
-        self.pre_result = deque(maxlen=n)
+        self.pre_result: deque[_WindowItemType] = deque(maxlen=n)
         self.fn = partial(fn, self.pre_result)
+        self.get_item_fn = get_item_fn if get_item_fn is not None else lambda x: x
 
-    def forward(self, _in: _InPut) -> _InPut:
-        self.pre_result.append(_in)
+    def forward(self, _in: _InPut) -> _Output:
+        self.pre_result.append(self.get_item_fn(_in))
         t = self.fn()
         if len(self.pre_result) < self.n:
             self.output = NoResult
@@ -200,8 +211,8 @@ class CursorHandleNode(FlowNodeBase[bool, _NoResult]):
         self.cursor_handle = cursor_handle
 
     def forward(self, _in: bool) -> _NoResult:
-        pos = self.pos_provider.output
         if _in:
+            pos = self.pos_provider.output
             logger.info({"tgt": self.cursor_handle.name})
             self.cursor_handle.execute(pos[0], pos[1])  # type: ignore
         return NoResult

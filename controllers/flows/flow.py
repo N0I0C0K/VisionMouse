@@ -19,13 +19,20 @@ from controllers.flows.node import (
     run_flow,
     NoResult,
 )
+from controllers.flows.window import (
+    WindowHandler,
+    jump_false,
+    jump_true,
+    move_down,
+    handle_dict,
+    all_true,
+)
 from controllers.landmark_match import GestureMatch
 from controllers.cursor_handle import CursorHandleEnum
 
 from utils import config, logger
 from utils.threading import set_thread_priority_to_high
 
-T = TypeVar("T")
 
 camera_node = CameraNode()
 
@@ -36,47 +43,14 @@ show_frame_node = ShowFrameNode()
 draw_node = DrawLandMarkNode(camera_node)
 
 
-class WindowHandler(Protocol, Generic[T]):
-    name: str
-
-    def __call__(self, it: Iterable[T]) -> T: ...
-
-
-def _all(it: Iterable[bool]) -> bool:
-    return all(it)
-
-
-def _all_not(it: Iterable[bool]) -> bool:
-    return all(not i for i in it)
-
-
-class JumpTrue(WindowHandler[bool]):
-    name = "JumpTrue"
-
-    def __call__(self, it: Iterable[bool]) -> bool:
-        it = iter(it)
-        return not next(it) and _all(it)
-
-
-_jump_true = JumpTrue()
-
-
-class JumpFalse(WindowHandler[bool]):
-    name = "JumpFalse"
-
-    def __call__(self, it: Iterable[bool]) -> bool:
-        it = iter(it)
-        return next(it) and _all_not(it)
-
-
-_jump_false = JumpFalse()
-
 GestureMatcher = tuple[GestureMatch, WindowHandler[bool]]
 
 gesture_and_cursor_handle_mapping: dict[GestureMatcher, CursorHandleEnum] = {
-    (GestureMatch.Index_Thumb, _jump_true): CursorHandleEnum.LeftDown,
-    (GestureMatch.Index_Thumb, _jump_false): CursorHandleEnum.LeftUp,
-    (GestureMatch.Middle_Thumb, _jump_true): CursorHandleEnum.RightClick,
+    (GestureMatch.Index_Thumb, jump_true): CursorHandleEnum.LeftDown,
+    (GestureMatch.Index_Thumb, jump_false): CursorHandleEnum.LeftUp,
+    (GestureMatch.Middle_Thumb, jump_true): CursorHandleEnum.RightClick,
+    (GestureMatch.Ring_Thumb, all_true): CursorHandleEnum.ScrollUp,
+    (GestureMatch.Pinky_Thumb, all_true): CursorHandleEnum.ScrollDown,
 }
 
 
@@ -95,7 +69,7 @@ def set_gesture_and_cursor_handle_mapping(data: list[dict]):
     gesture_and_cursor_handle_mapping.clear()
     for t in data:
         gesture_matcher = GestureMatch[t["match"]]
-        match_func = _jump_false if t["matchFunc"] == "JumpFalse" else _jump_true
+        match_func = handle_dict[t["matchFunc"]]
         handler = CursorHandleEnum[t["handle"]]
         gesture_and_cursor_handle_mapping[(gesture_matcher, match_func)] = handler
 
@@ -105,7 +79,7 @@ def gen_gesture_and_cursor_combine_node(
 ):
     gesture, fn = gesture_matcher
     gesture_node = GestureMatchNode(gesture)
-    pre_node = PreResultWindowNode(2, fn)
+    pre_node = PreResultWindowNode(3, fn, lambda x: x)
     cursor_node = CursorHandleNode(cursor_move_handle_node, cursor_handle)
 
     gesture_node.add_next(pre_node)
