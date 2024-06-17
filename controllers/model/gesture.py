@@ -25,10 +25,10 @@ class GestureModel:
         options = GestureRecognizerOptions(
             base_options=BaseOptions(model_asset_buffer=buffer),
             running_mode=VisionTaskRunningMode.VIDEO,
-            num_hands=2,
-            min_hand_detection_confidence=0.9,
-            min_hand_presence_confidence=0.9,
-            min_tracking_confidence=0.9,
+            num_hands=3,
+            min_hand_detection_confidence=0.8,
+            min_hand_presence_confidence=0.8,
+            min_tracking_confidence=0.6,
         )
         self.landmarker = GestureRecognizer.create_from_options(options)
 

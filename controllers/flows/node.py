@@ -174,27 +174,23 @@ class GestureMatchNode(FlowNodeBase[HandInfo, bool]):
 _WindowItemType = TypeVar("_WindowItemType")
 
 
-class PreResultWindowNode(
-    FlowNodeBase[_InPut, _Output], Generic[_InPut, _Output, _WindowItemType]
-):
+class PreResultWindowNode(FlowNodeBase[_InPut, _Output]):
     def __init__(
         self,
         n: int,
-        fn: Callable[[Iterable[_WindowItemType]], _Output],
-        get_item_fn: Callable[[_InPut], _WindowItemType] | None = None,
+        fn: Callable[[Iterable[_InPut]], _Output],
     ) -> None:
         """
         适用于对于历史数据的处理，比如需要同时满足前面几次输入都为 true 等
         """
         super().__init__()
         self.n = n
-        self.pre_result: deque[_WindowItemType] = deque(maxlen=n)
-        self.fn = partial(fn, self.pre_result)
-        self.get_item_fn = get_item_fn if get_item_fn is not None else lambda x: x
+        self.pre_result: deque[_InPut] = deque(maxlen=n)
+        self.fn = fn
 
     def forward(self, _in: _InPut) -> _Output:
-        self.pre_result.append(self.get_item_fn(_in))
-        t = self.fn()
+        self.pre_result.append(_in)
+        t = self.fn(self.pre_result)
         if len(self.pre_result) < self.n:
             self.output = NoResult
         else:
@@ -204,17 +200,18 @@ class PreResultWindowNode(
 
 class CursorHandleNode(FlowNodeBase[bool, _NoResult]):
     def __init__(
-        self, cursor_move_node: FlowNode[Any, Position], cursor_handle: CursorHandleEnum
+        self,
+        cursor_pos_func: Callable[[], tuple[int, int]],
+        cursor_handle: CursorHandleEnum,
     ) -> None:
         super().__init__()
-        self.pos_provider = cursor_move_node
+        self.cursor_pos_func = cursor_pos_func
         self.cursor_handle = cursor_handle
 
     def forward(self, _in: bool) -> _NoResult:
         if _in:
-            pos = self.pos_provider.output
-            logger.info({"tgt": self.cursor_handle.name})
-            self.cursor_handle.execute(pos[0], pos[1])  # type: ignore
+            pos = self.cursor_pos_func()
+            self.cursor_handle.execute(pos[0], pos[1])
         return NoResult
 
 
@@ -315,3 +312,24 @@ class GestureRecognizeNode(FlowNodeBase[FrameTuple, list[HandInfo]]):
         assert self.model is not None
         # self.model.close()
         super().clean_effect()
+
+
+class OperationAndNode(FlowNodeBase[bool, bool]):
+    def __init__(self, check_fn: Iterable[Callable[[], bool]]) -> None:
+        super().__init__()
+        self.check_fns = list(check_fn)
+
+    def forward(self, _in: bool) -> bool:
+        res = _in and all(map(lambda x: x(), self.check_fns))
+        self.output = res
+        return res
+
+
+class OperationMapNode(FlowNodeBase[_InPut, _Output]):
+    def __init__(self, fn: Callable[[_InPut], _Output]) -> None:
+        super().__init__()
+        self.fn = fn
+
+    def forward(self, _in: _InPut) -> _Output:
+        self.output = self.fn(_in)
+        return self.output

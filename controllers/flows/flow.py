@@ -1,34 +1,21 @@
 import asyncio
 import time
-from typing import Any, Iterable, TypeVar, Callable, Protocol, Generic
+from typing import Any
 
 from controllers.flows.node import (
     CameraNode,
     CursorMoveHandleNode,
     FlowNode,
     LandMarkFilterNode,
-    LandMarkModelNode,
-    LandMarkV2Node,
     GestureRecognizeNode,
     ShowFrameNode,
-    PreResultWindowNode,
-    CombineFlowNode,
-    GestureMatchNode,
-    CursorHandleNode,
     DrawLandMarkNode,
+    LandMarkV2Node,
     run_flow,
     NoResult,
 )
-from controllers.flows.window import (
-    WindowHandler,
-    jump_false,
-    jump_true,
-    move_down,
-    handle_dict,
-    all_true,
-)
-from controllers.landmark_match import GestureMatch
-from controllers.cursor_handle import CursorHandleEnum
+from controllers.flows.control_flow import gen_all_cursor_control_node
+
 
 from utils import config, logger
 from utils.threading import set_thread_priority_to_high
@@ -41,51 +28,6 @@ hands_filter_node = LandMarkFilterNode()
 cursor_move_handle_node = CursorMoveHandleNode()
 show_frame_node = ShowFrameNode()
 draw_node = DrawLandMarkNode(camera_node)
-
-
-GestureMatcher = tuple[GestureMatch, WindowHandler[bool]]
-
-gesture_and_cursor_handle_mapping: dict[GestureMatcher, CursorHandleEnum] = {
-    (GestureMatch.Index_Thumb, jump_true): CursorHandleEnum.LeftDown,
-    (GestureMatch.Index_Thumb, jump_false): CursorHandleEnum.LeftUp,
-    (GestureMatch.Middle_Thumb, jump_true): CursorHandleEnum.RightClick,
-    (GestureMatch.Ring_Thumb, all_true): CursorHandleEnum.ScrollUp,
-    (GestureMatch.Pinky_Thumb, all_true): CursorHandleEnum.ScrollDown,
-}
-
-
-def gen_gesture_and_cursor_handle_mapping_list() -> list[dict]:
-    res = [
-        {"match": ges[0].name, "matchFunc": ges[1].name, "handle": cur.name}
-        for ges, cur in gesture_and_cursor_handle_mapping.items()
-    ]
-    return res
-
-
-def set_gesture_and_cursor_handle_mapping(data: list[dict]):
-    if flow_manager.running or _inited:
-        raise RuntimeError("can not change during running")
-
-    gesture_and_cursor_handle_mapping.clear()
-    for t in data:
-        gesture_matcher = GestureMatch[t["match"]]
-        match_func = handle_dict[t["matchFunc"]]
-        handler = CursorHandleEnum[t["handle"]]
-        gesture_and_cursor_handle_mapping[(gesture_matcher, match_func)] = handler
-
-
-def gen_gesture_and_cursor_combine_node(
-    gesture_matcher: GestureMatcher, cursor_handle: CursorHandleEnum
-):
-    gesture, fn = gesture_matcher
-    gesture_node = GestureMatchNode(gesture)
-    pre_node = PreResultWindowNode(3, fn, lambda x: x)
-    cursor_node = CursorHandleNode(cursor_move_handle_node, cursor_handle)
-
-    gesture_node.add_next(pre_node)
-    pre_node.add_next(cursor_node)
-
-    return CombineFlowNode(gesture_node, cursor_node)
 
 
 _inited = False
@@ -105,11 +47,11 @@ def init_graph():
     if "is_server" not in config:
         logger.info("no server")
         hands_filter_node.add_next(draw_node)
+        camera_node.add_next(show_frame_node)
+        # draw_node.add_next(show_frame_node)
 
-        draw_node.add_next(show_frame_node)
-
-    for it, handle in gesture_and_cursor_handle_mapping.items():
-        hands_filter_node.add_next(gen_gesture_and_cursor_combine_node(it, handle))
+    for control_node in gen_all_cursor_control_node():
+        hands_filter_node.add_next(control_node)
 
 
 def _clear_next_nodes(*nodes: FlowNode):

@@ -1,7 +1,7 @@
 from math import floor, sqrt
 from typing import NamedTuple
 
-from controllers.cursor_handle import direction, move, current_position
+from controllers.cursor_handle import move, current_position
 from controllers.hand_info import HandInfo
 from controllers.types import PositionTuple
 from filter import SlidingWindowMeanFilter
@@ -11,6 +11,12 @@ class MouseState(NamedTuple):
     base_speed: float
     acceleration: float
     pos: PositionTuple
+
+
+def direction(t: tuple[float, float]) -> tuple[float, float]:
+    x, y = t
+    dis = max(sqrt(x * x + y * y), 0.001)
+    return x / dis, y / dis
 
 
 class HandMoveHandler:

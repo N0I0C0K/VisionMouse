@@ -11,6 +11,8 @@ from controllers.flows.flow import (
     draw_node,
     land_mark_model_node,
     hands_filter_node,
+)
+from controllers.flows.control_flow import (
     gen_gesture_and_cursor_handle_mapping_list,
     set_gesture_and_cursor_handle_mapping,
 )

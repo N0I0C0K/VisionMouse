@@ -3,9 +3,7 @@ import secrets
 import time
 
 from math import sqrt
-from enum import Enum
 from typing import Protocol, Callable, Any
-from functools import cache
 
 SYS_PLATFORM = sys.platform
 
@@ -30,9 +28,9 @@ elif SYS_PLATFORM.startswith("darwin"):
 else:
     raise ImportError
 
-from controllers.types import Position
-from utils import distance
 from utils.enum import DictEnum
+
+CursorPosition = tuple[int, int]
 
 
 class CursorHandler(Protocol):
@@ -44,17 +42,11 @@ def safe_division(a, b) -> float:
     return a / b if b != 0 else a / 0.1
 
 
-def direction(t: tuple[int, int]) -> tuple[float, float]:
-    x, y = t
-    dis = max(sqrt(x * x + y * y), 0.001)
-    return x / dis, y / dis
-
-
-def current_position() -> Position:
+def current_position() -> CursorPosition:
     return _position()
 
 
-def move(dx: int, dy: int) -> Position:
+def move(dx: int, dy: int) -> CursorPosition:
     pos = _position()
     _moveTo(pos[0] + dx, pos[1] + dy)
     return _position()
@@ -127,7 +119,7 @@ class ScrollUpHandler(CursorHandler):
         _vscroll(10, x, y)
 
 
-HandleCallback = Callable[[str, Position, float], None]
+HandleCallback = Callable[[str, CursorPosition, float], None]
 
 on_cursor_handle_execute: dict[str, HandleCallback] = dict()
 

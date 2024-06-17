@@ -1,8 +1,22 @@
-from controllers.flows.flow import start_flow
+# from controllers.flows.flow import start_flow
 
 
-while True:
-    start_flow()
+# while True:
+#     start_flow()
+
+
+class Parent:
+    def __init__(self) -> None:
+        print(type(self).__name__)
+
+
+class Child(Parent): ...
+
+
+cc = Child()
+
+
+# print(hash(None))
 
 # import pydantic
 
