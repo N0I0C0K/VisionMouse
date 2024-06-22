@@ -27,8 +27,11 @@ class HandMoveHandler:
         self.last_hand = None
         self.base_speed = 0.1
         self.acceleration = 0.1
+        self.enable_move = True
 
     def forward(self, hand_info: HandInfo):
+        if not self.enable_move:
+            return current_position()
         cur_hand = hand_info  # self.get_the_right_hand(hand_info_list)
         last_hand = self.last_hand
         self.last_hand = cur_hand

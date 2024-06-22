@@ -3,6 +3,7 @@ from typing import Optional
 
 from controllers.landmark_match import GestureMatch
 from controllers.hand_info import HandInfo
+from controllers.hand_move import hand_move_handler
 from controllers.cursor_handle import CursorHandleEnum, current_position
 from controllers.flows.window import (
     WindowHandler,
@@ -33,6 +34,7 @@ class GestureMatcherCompose:
     cursor_handle: CursorHandleEnum
     window_len: int = 3
     move_check: Optional[WindowHandler[Position3D, bool]] = None
+    stop_move_cursor_when_active: bool = False
 
     def __hash__(self) -> int:
         return (
@@ -55,12 +57,14 @@ gesture_handle_set: set[GestureMatcherCompose] = {
         all_true,
         CursorHandleEnum.ScrollUp,
         move_check=move_down,
+        stop_move_cursor_when_active=True,
     ),
     GestureMatcherCompose(
         GestureMatch.Victory,
         all_true,
         CursorHandleEnum.ScrollDown,
         move_check=move_up,
+        stop_move_cursor_when_active=True,
     ),
 }
 
@@ -91,6 +95,12 @@ def set_gesture_and_cursor_handle_mapping(data: list[dict]):
         )
 
 
+def stop_cursor_when_active(_in: bool) -> None:
+    if hand_move_handler.enable_move == _in:
+        hand_move_handler.enable_move = not _in
+        hand_move_handler.last_hand = None
+
+
 def gen_gesture_and_cursor_combine_node(gesture_matcher: GestureMatcherCompose):
     gesture, fn = gesture_matcher.gesture_matcher, gesture_matcher.check_func
 
@@ -119,6 +129,10 @@ def gen_gesture_and_cursor_combine_node(gesture_matcher: GestureMatcherCompose):
         pos_window.add_next(and_node)
 
         and_node.add_next(cursor_node)
+
+        if gesture_matcher.stop_move_cursor_when_active:
+            and_node.add_next(OperationMapNode(stop_cursor_when_active))
+
     else:
         pre_node.add_next(cursor_node)
 

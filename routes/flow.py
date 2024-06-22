@@ -88,7 +88,6 @@ async def mouse_action_feed(ws: WebSocket):
     que: asyncio.Queue[tuple[str, Position, float]] = asyncio.Queue()
 
     def call_back(name: str, pos, t):
-        print(name, pos)
         que.put_nowait((name, pos, t))
 
     clean = add_on_handle_execute(call_back)
